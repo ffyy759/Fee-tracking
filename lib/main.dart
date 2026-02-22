@@ -39,6 +39,7 @@ class Student {
   DateTime? lastPaymentDate;
   String subject;
   String batch;
+  List<DateTime> attendance;
 
   Student({
     required this.id,
@@ -51,7 +52,8 @@ class Student {
     this.lastPaymentDate,
     required this.subject,
     required this.batch,
-  });
+    List<DateTime>? attendance,
+  }) : attendance = attendance ?? [];
 
   double get pendingAmount => feeAmount - paidAmount;
   bool get isPaid => paidAmount >= feeAmount;
@@ -63,32 +65,37 @@ class Student {
   }
 
   Map<String, dynamic> toJson() => {
-    'id': id,
-    'name': name,
-    'phone': phone,
-    'parentPhone': parentPhone,
-    'feeAmount': feeAmount,
-    'paidAmount': paidAmount,
-    'admissionDate': admissionDate.toIso8601String(),
-    'lastPaymentDate': lastPaymentDate?.toIso8601String(),
-    'subject': subject,
-    'batch': batch,
-  };
+        'id': id,
+        'name': name,
+        'phone': phone,
+        'parentPhone': parentPhone,
+        'feeAmount': feeAmount,
+        'paidAmount': paidAmount,
+        'admissionDate': admissionDate.toIso8601String(),
+        'lastPaymentDate': lastPaymentDate?.toIso8601String(),
+        'subject': subject,
+        'batch': batch,
+        'attendance': attendance.map((e) => e.toIso8601String()).toList(),
+      };
 
   factory Student.fromJson(Map<String, dynamic> json) => Student(
-    id: json['id'],
-    name: json['name'],
-    phone: json['phone'],
-    parentPhone: json['parentPhone'],
-    feeAmount: json['feeAmount'].toDouble(),
-    paidAmount: json['paidAmount'].toDouble(),
-    admissionDate: DateTime.parse(json['admissionDate']),
-    lastPaymentDate: json['lastPaymentDate'] != null
-        ? DateTime.parse(json['lastPaymentDate'])
-        : null,
-    subject: json['subject'],
-    batch: json['batch'],
-  );
+        id: json['id'],
+        name: json['name'],
+        phone: json['phone'],
+        parentPhone: json['parentPhone'],
+        feeAmount: json['feeAmount'].toDouble(),
+        paidAmount: json['paidAmount'].toDouble(),
+        admissionDate: DateTime.parse(json['admissionDate']),
+        lastPaymentDate: json['lastPaymentDate'] != null
+            ? DateTime.parse(json['lastPaymentDate'])
+            : null,
+        subject: json['subject'],
+        batch: json['batch'],
+        attendance: (json['attendance'] as List?)
+                ?.map((e) => DateTime.parse(e))
+                .toList() ??
+            [],
+      );
 }
 
 class HomeScreen extends StatefulWidget {
@@ -121,8 +128,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _saveStudents() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('students',
-        jsonEncode(students.map((e) => e.toJson()).toList()));
+    await prefs.setString(
+        'students', jsonEncode(students.map((e) => e.toJson()).toList()));
   }
 
   void _addStudent(Student student) {
@@ -165,8 +172,7 @@ class _HomeScreenState extends State<HomeScreen> {
         destinations: const [
           NavigationDestination(
               icon: Icon(Icons.dashboard), label: 'Dashboard'),
-          NavigationDestination(
-              icon: Icon(Icons.people), label: 'Students'),
+          NavigationDestination(icon: Icon(Icons.people), label: 'Students'),
         ],
       ),
     );
@@ -217,8 +223,8 @@ class DashboardTab extends StatelessWidget {
           children: [
             Row(children: [
               Expanded(
-                  child: _StatCard('Total', '${students.length}',
-                      Icons.people, const Color(0xFF6C63FF))),
+                  child: _StatCard('Total', '${students.length}', Icons.people,
+                      const Color(0xFF6C63FF))),
               const SizedBox(width: 12),
               Expanded(
                   child: _StatCard('Overdue', '${overdueStudents.length}',
@@ -261,28 +267,25 @@ class DashboardTab extends StatelessWidget {
             if (overdueStudents.isNotEmpty) ...[
               const SizedBox(height: 16),
               const Text('Overdue Students',
-                  style: TextStyle(
-                      fontSize: 18, fontWeight: FontWeight.bold)),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
-              ...overdueStudents
-                  .map((s) => _OverdueCard(student: s)),
+              ...overdueStudents.map((s) => _OverdueCard(student: s)),
             ],
           ],
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => Navigator.push(context,
+        onPressed: () => Navigator.push(
+            context,
             MaterialPageRoute(
-                builder: (_) =>
-                    AddStudentScreen(onSave: onAddStudent))),
+                builder: (_) => AddStudentScreen(onSave: onAddStudent))),
         icon: const Icon(Icons.add),
         label: const Text('Add Student'),
       ),
     );
   }
 
-  void _showOverdueSheet(
-      BuildContext context, List<Student> overdueStudents) {
+  void _showOverdueSheet(BuildContext context, List<Student> overdueStudents) {
     showModalBottomSheet(
       context: context,
       builder: (_) => Column(
@@ -290,14 +293,12 @@ class DashboardTab extends StatelessWidget {
           const Padding(
             padding: EdgeInsets.all(16),
             child: Text('Overdue Students',
-                style: TextStyle(
-                    fontSize: 18, fontWeight: FontWeight.bold)),
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
           ),
           Expanded(
             child: ListView.builder(
               itemCount: overdueStudents.length,
-              itemBuilder: (_, i) =>
-                  _OverdueCard(student: overdueStudents[i]),
+              itemBuilder: (_, i) => _OverdueCard(student: overdueStudents[i]),
             ),
           ),
         ],
@@ -326,9 +327,7 @@ class _StatCard extends StatelessWidget {
             const SizedBox(height: 8),
             Text(value,
                 style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    color: color)),
+                    fontSize: 22, fontWeight: FontWeight.bold, color: color)),
             Text(title,
                 style: const TextStyle(fontSize: 12, color: Colors.grey)),
           ],
@@ -347,41 +346,13 @@ class _OverdueCard extends StatelessWidget {
     return Card(
       color: Colors.red.withOpacity(0.1),
       child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: Colors.red,
-          child: Text(student.name[0],
-              style: const TextStyle(color: Colors.white)),
-        ),
-        title: Text(student.name),
+        title: Text(student.name,
+            style: const TextStyle(fontWeight: FontWeight.bold)),
         subtitle: Text(
-            'Pending: Rs${student.pendingAmount.toStringAsFixed(0)}'),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            IconButton(
-              icon: const Icon(Icons.message, color: Colors.green),
-              onPressed: () => _sendWhatsApp(
-                  student.phone,
-                  'Dear ${student.name}, your fee of Rs${student.pendingAmount.toStringAsFixed(0)} is overdue.'),
-            ),
-            IconButton(
-              icon: const Icon(Icons.family_restroom, color: Colors.blue),
-              onPressed: () => _sendWhatsApp(
-                  student.parentPhone,
-                  'Dear Parent, ${student.name} fee of Rs${student.pendingAmount.toStringAsFixed(0)} is overdue.'),
-            ),
-          ],
-        ),
+            'Pending: Rs${student.pendingAmount.toStringAsFixed(0)} | ${student.batch}'),
+        trailing: const Icon(Icons.warning, color: Colors.red),
       ),
     );
-  }
-
-  Future<void> _sendWhatsApp(String phone, String message) async {
-    final url =
-        'https://wa.me/$phone?text=${Uri.encodeComponent(message)}';
-    if (await canLaunchUrl(Uri.parse(url))) {
-      await launchUrl(Uri.parse(url));
-    }
   }
 }
 
@@ -404,83 +375,37 @@ class StudentListTab extends StatefulWidget {
 }
 
 class _StudentListTabState extends State<StudentListTab> {
-  String _filter = 'All';
-  String _search = '';
+  String query = '';
 
   @override
   Widget build(BuildContext context) {
-    final filtered = widget.students.where((s) {
-      final matchSearch =
-          s.name.toLowerCase().contains(_search.toLowerCase()) ||
-              s.batch.toLowerCase().contains(_search.toLowerCase());
-      final matchFilter = _filter == 'All'
-          ? true
-          : _filter == 'Paid'
-              ? s.isPaid
-              : _filter == 'Overdue'
-                  ? s.isOverdue
-                  : !s.isPaid;
-      return matchSearch && matchFilter;
-    }).toList();
+    final filtered = widget.students
+        .where((s) => s.name.toLowerCase().contains(query.toLowerCase()))
+        .toList();
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Students',
             style: TextStyle(fontWeight: FontWeight.bold)),
-      ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: TextField(
-              decoration: const InputDecoration(
-                hintText: 'Search student or batch...',
-                prefixIcon: Icon(Icons.search),
-                border: OutlineInputBorder(
-                    borderRadius:
-                        BorderRadius.all(Radius.circular(12))),
-              ),
-              onChanged: (v) => setState(() => _search = v),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(60),
+          child: Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: SearchBar(
+              hintText: 'Search students...',
+              onChanged: (v) => setState(() => query = v),
+              leading: const Icon(Icons.search),
             ),
           ),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: Row(
-              children: ['All', 'Paid', 'Unpaid', 'Overdue'].map((f) {
-                return Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: FilterChip(
-                    label: Text(f),
-                    selected: _filter == f,
-                    onSelected: (_) => setState(() => _filter = f),
-                  ),
-                );
-              }).toList(),
-            ),
-          ),
-          Expanded(
-            child: filtered.isEmpty
-                ? const Center(child: Text('No students found'))
-                : ListView.builder(
-                    itemCount: filtered.length,
-                    itemBuilder: (_, i) => _StudentCard(
-                      student: filtered[i],
-                      onUpdate: widget.onUpdateStudent,
-                      onDelete: widget.onDeleteStudent,
-                    ),
-                  ),
-          ),
-        ],
+        ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => Navigator.push(
-            context,
-            MaterialPageRoute(
-                builder: (_) =>
-                    AddStudentScreen(onSave: widget.onAddStudent))),
-        icon: const Icon(Icons.add),
-        label: const Text('Add Student'),
+      body: ListView.builder(
+        itemCount: filtered.length,
+        itemBuilder: (_, i) => _StudentCard(
+          student: filtered[i],
+          onUpdate: widget.onUpdateStudent,
+          onDelete: widget.onDeleteStudent,
+        ),
       ),
     );
   }
@@ -491,10 +416,11 @@ class _StudentCard extends StatelessWidget {
   final Function(Student) onUpdate;
   final Function(String) onDelete;
 
-  const _StudentCard(
-      {required this.student,
-      required this.onUpdate,
-      required this.onDelete});
+  const _StudentCard({
+    required this.student,
+    required this.onUpdate,
+    required this.onDelete,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -517,8 +443,7 @@ class _StudentCard extends StatelessWidget {
         subtitle: Text(
             '${student.batch} | Rs${student.pendingAmount.toStringAsFixed(0)} pending'),
         trailing: Container(
-          padding:
-              const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           decoration: BoxDecoration(
               color: color.withOpacity(0.2),
               borderRadius: BorderRadius.circular(8)),
@@ -528,8 +453,7 @@ class _StudentCard extends StatelessWidget {
                   : student.isOverdue
                       ? 'OVERDUE'
                       : 'PENDING',
-              style: TextStyle(
-                  color: color, fontWeight: FontWeight.bold)),
+              style: TextStyle(color: color, fontWeight: FontWeight.bold)),
         ),
         children: [
           Padding(
@@ -539,37 +463,32 @@ class _StudentCard extends StatelessWidget {
                 _InfoRow('Subject', student.subject),
                 _InfoRow('Phone', student.phone),
                 _InfoRow('Parent', student.parentPhone),
-                _InfoRow('Total Fee',
-                    'Rs${student.feeAmount.toStringAsFixed(0)}'),
-                _InfoRow('Paid',
-                    'Rs${student.paidAmount.toStringAsFixed(0)}'),
+                _InfoRow(
+                    'Total Fee', 'Rs${student.feeAmount.toStringAsFixed(0)}'),
+                _InfoRow(
+                    'Paid', 'Rs${student.paidAmount.toStringAsFixed(0)}'),
                 _InfoRow('Pending',
                     'Rs${student.pendingAmount.toStringAsFixed(0)}'),
-                _InfoRow(
-                    'Admission',
-                    DateFormat('dd MMM yyyy')
-                        .format(student.admissionDate)),
+                _InfoRow('Admission',
+                    DateFormat('dd MMM yyyy').format(student.admissionDate)),
+                _InfoRow('Attendance', '${student.attendance.length} days'),
                 const SizedBox(height: 12),
                 Row(
                   children: [
                     Expanded(
                       child: OutlinedButton.icon(
-                        icon: const Icon(Icons.message,
-                            color: Colors.green),
+                        icon: const Icon(Icons.message, color: Colors.green),
                         label: const Text('Student'),
-                        onPressed: () => _sendWhatsApp(
-                            student.phone,
+                        onPressed: () => _sendWhatsApp(student.phone,
                             'Dear ${student.name}, fee of Rs${student.pendingAmount.toStringAsFixed(0)} is due.'),
                       ),
                     ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: OutlinedButton.icon(
-                        icon: const Icon(Icons.family_restroom,
-                            color: Colors.blue),
+                        icon: const Icon(Icons.family_restroom, color: Colors.blue),
                         label: const Text('Parent'),
-                        onPressed: () => _sendWhatsApp(
-                            student.parentPhone,
+                        onPressed: () => _sendWhatsApp(student.parentPhone,
                             'Dear Parent, ${student.name} fee of Rs${student.pendingAmount.toStringAsFixed(0)} is due.'),
                       ),
                     ),
@@ -580,22 +499,136 @@ class _StudentCard extends StatelessWidget {
                   children: [
                     Expanded(
                       child: ElevatedButton.icon(
+                        icon: const Icon(Icons.calendar_today),
+                        label: const Text('Attendance'),
+                        onPressed: () => _showAttendanceDialog(context),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: ElevatedButton.icon(
                         icon: const Icon(Icons.payment),
                         label: const Text('Add Payment'),
-                        onPressed: () =>
-                            _showPaymentDialog(context),
+                        onPressed: () => _showPaymentDialog(context),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        icon: const Icon(Icons.edit),
+                        label: const Text('Edit Fee'),
+                        onPressed: () => _showEditFeeDialog(context),
                       ),
                     ),
                     const SizedBox(width: 8),
                     IconButton(
-                      icon: const Icon(Icons.delete,
-                          color: Colors.red),
+                      icon: const Icon(Icons.delete, color: Colors.red),
                       onPressed: () => _confirmDelete(context),
                     ),
                   ],
                 ),
               ],
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showAttendanceDialog(BuildContext context) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final isPresentToday = student.attendance.any((d) =>
+        d.year == today.year && d.month == today.month && d.day == today.day);
+
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text('Attendance: ${student.name}'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Total present days: ${student.attendance.length}'),
+            const SizedBox(height: 16),
+            isPresentToday
+                ? const Text('Already marked present today.',
+                    style: TextStyle(color: Colors.green))
+                : const Text('Mark present for today?'),
+          ],
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Close')),
+          if (!isPresentToday)
+            ElevatedButton(
+              onPressed: () {
+                final newAttendance = List<DateTime>.from(student.attendance)
+                  ..add(today);
+                onUpdate(Student(
+                  id: student.id,
+                  name: student.name,
+                  phone: student.phone,
+                  parentPhone: student.parentPhone,
+                  feeAmount: student.feeAmount,
+                  paidAmount: student.paidAmount,
+                  admissionDate: student.admissionDate,
+                  lastPaymentDate: student.lastPaymentDate,
+                  subject: student.subject,
+                  batch: student.batch,
+                  attendance: newAttendance,
+                ));
+                Navigator.pop(context);
+              },
+              child: const Text('Mark Present'),
+            ),
+        ],
+      ),
+    );
+  }
+
+  void _showEditFeeDialog(BuildContext context) {
+    final controller =
+        TextEditingController(text: student.feeAmount.toStringAsFixed(0));
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Customize Monthly Fee'),
+        content: TextField(
+          controller: controller,
+          keyboardType: TextInputType.number,
+          decoration:
+              const InputDecoration(labelText: 'Monthly Fee', prefixText: 'Rs'),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () {
+              final newFee = double.tryParse(controller.text) ?? 0;
+              if (newFee > 0) {
+                onUpdate(Student(
+                  id: student.id,
+                  name: student.name,
+                  phone: student.phone,
+                  parentPhone: student.parentPhone,
+                  feeAmount: newFee,
+                  paidAmount: student.paidAmount,
+                  admissionDate: student.admissionDate,
+                  lastPaymentDate: student.lastPaymentDate,
+                  subject: student.subject,
+                  batch: student.batch,
+                  attendance: student.attendance,
+                ));
+                Navigator.pop(context);
+              }
+            },
+            child: const Text('Update'),
           ),
         ],
       ),
@@ -611,8 +644,8 @@ class _StudentCard extends StatelessWidget {
         content: TextField(
           controller: controller,
           keyboardType: TextInputType.number,
-          decoration: const InputDecoration(
-              labelText: 'Amount', prefixText: 'Rs'),
+          decoration:
+              const InputDecoration(labelText: 'Amount', prefixText: 'Rs'),
         ),
         actions: [
           TextButton(
@@ -620,8 +653,7 @@ class _StudentCard extends StatelessWidget {
               child: const Text('Cancel')),
           ElevatedButton(
             onPressed: () {
-              final amount =
-                  double.tryParse(controller.text) ?? 0;
+              final amount = double.tryParse(controller.text) ?? 0;
               if (amount > 0) {
                 onUpdate(Student(
                   id: student.id,
@@ -634,6 +666,7 @@ class _StudentCard extends StatelessWidget {
                   lastPaymentDate: DateTime.now(),
                   subject: student.subject,
                   batch: student.batch,
+                  attendance: student.attendance,
                 ));
                 Navigator.pop(context);
               }
@@ -650,15 +683,13 @@ class _StudentCard extends StatelessWidget {
       context: context,
       builder: (_) => AlertDialog(
         title: const Text('Delete Student?'),
-        content:
-            Text('${student.name} will be deleted permanently.'),
+        content: Text('${student.name} will be deleted permanently.'),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context),
               child: const Text('Cancel')),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () {
               onDelete(student.id);
               Navigator.pop(context);
@@ -671,8 +702,7 @@ class _StudentCard extends StatelessWidget {
   }
 
   Future<void> _sendWhatsApp(String phone, String message) async {
-    final url =
-        'https://wa.me/$phone?text=${Uri.encodeComponent(message)}';
+    final url = 'https://wa.me/$phone?text=${Uri.encodeComponent(message)}';
     if (await canLaunchUrl(Uri.parse(url))) {
       await launchUrl(Uri.parse(url));
     }
@@ -691,11 +721,8 @@ class _InfoRow extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label,
-              style: const TextStyle(color: Colors.grey)),
-          Text(value,
-              style:
-                  const TextStyle(fontWeight: FontWeight.bold)),
+          Text(label, style: const TextStyle(color: Colors.grey)),
+          Text(value, style: const TextStyle(fontWeight: FontWeight.bold)),
         ],
       ),
     );
@@ -731,10 +758,9 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
           padding: const EdgeInsets.all(16),
           children: [
             _field(_name, 'Student Name', Icons.person),
-            _field(_phone, 'Student Phone (with country code)',
-                Icons.phone, TextInputType.phone),
-            _field(_parentPhone,
-                'Parent Phone (with country code)',
+            _field(_phone, 'Student Phone (with country code)', Icons.phone,
+                TextInputType.phone),
+            _field(_parentPhone, 'Parent Phone (with country code)',
                 Icons.family_restroom, TextInputType.phone),
             _field(_fee, 'Monthly Fee', Icons.currency_rupee,
                 TextInputType.number),
@@ -742,11 +768,9 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
             _field(_batch, 'Batch', Icons.group),
             const SizedBox(height: 24),
             ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.all(16)),
+              style: ElevatedButton.styleFrom(padding: const EdgeInsets.all(16)),
               icon: const Icon(Icons.save),
-              label: const Text('Save Student',
-                  style: TextStyle(fontSize: 16)),
+              label: const Text('Save Student', style: TextStyle(fontSize: 16)),
               onPressed: _save,
             ),
           ],
@@ -755,8 +779,7 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
     );
   }
 
-  Widget _field(TextEditingController c, String label,
-      IconData icon,
+  Widget _field(TextEditingController c, String label, IconData icon,
       [TextInputType type = TextInputType.text]) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
@@ -767,8 +790,7 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
           labelText: label,
           prefixIcon: Icon(icon),
           border: const OutlineInputBorder(
-              borderRadius:
-                  BorderRadius.all(Radius.circular(12))),
+              borderRadius: BorderRadius.all(Radius.circular(12))),
         ),
         validator: (v) => v!.isEmpty ? 'Required' : null,
       ),
